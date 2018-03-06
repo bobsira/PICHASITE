@@ -1,36 +1,53 @@
-//1.Indicate that the returned data is application/json
-//2.Print out the incoming request on console.log
-//3.Return a JSON string.
-
 
 var http = require('http'),
-    fs = require('fs');
+fs = require('fs');
 
-    function load_album_list(callback) {
-    // we will just assume that any directory in our 'albums'
-    // subfolder is an album.
-    fs.readdir("albums", (err, files) => {
+function load_album_list(callback) {
+  // we will just assume that any directory in our 'albums'
+  // subfolder is an album.
+  fs.readdir("albums", (err, files) => {
+    if (err) {
+      callback(err);
+      return;
+    }
+
+    var only_dirs = [];
+
+    var iterator = (index) => {
+      if (index == files.length) {
+        callback(null, only_dirs);
+        return;
+      }
+
+      fs.stat("albums/" + files[index], (err, stats) => {
         if (err) {
-            callback(err);
-            return;
+          callback(err);
+          return;
         }
-        callback(null, files);
-    });
+        if (stats.isDirectory()) {
+          only_dirs.push(files[index]);
+        }
+        iterator(index + 1)
+      });
+    }
+    iterator(0);
+  });
 }
 
-function handle_incoming_request(req, res) {
-    console.log("INCOMING REQUEST: " + req.method + " " + req.url);
-    load_album_list((err, albums) => {
-        if (err) {
-            res.writeHead(500, {"Content-Type": "application/json"});
-            res.end(JSON.stringify(err) + "\n");
-            return;
-        }
 
-        var out = { error: null, data: { albums: albums } };
-        res.writeHead(200, {"Content-Type": "application/json"});
-        res.end(JSON.stringify(out) + "\n");
-    });
+function handle_incoming_request(req, res) {
+  console.log("INCOMING REQUEST: " + req.method + " " + req.url);
+  load_album_list((err, albums) => {
+    if (err) {
+      res.writeHead(500, {"Content-Type": "application/json"});
+      res.end(JSON.stringify(err) + "\n");
+      return;
+    }
+
+    var out = { error: null, data: { albums: albums } };
+    res.writeHead(200, {"Content-Type": "application/json"});
+    res.end(JSON.stringify(out) + "\n");
+  });
 }
 
 
