@@ -1,3 +1,4 @@
-Expand the functionality of the server to allow
-1. A list of albums available-you can call this /albums.json
-2. A list of items in an album-you can call this /albums/albums_name.json
+Code to handle paging
+1. Modify the handle_incoming_request function to parse the URL properly.
+2. Parse the query string and get the values for the page and page_size.
+3.Modify the load_album function to support these parameters.
