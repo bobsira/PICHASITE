@@ -84,6 +84,13 @@ function load_album(album_name, page, page_size, callback) {
     });
   }
 
+  function do_rename(old_name, new_name, callback) {
+    // Rename the album folder.
+    fs.rename("albums/" + old_name,
+              "albums/" + new_name,
+              callback);
+}
+
   function handle_incoming_request(req, res) {
     console.log("INCOMING REQUEST: " + req.method + " " + req.url);
 
@@ -94,14 +101,17 @@ function load_album(album_name, page, page_size, callback) {
     var core_url = req.parsed_url.pathname;
 
     // test this fixed url to see what they're asking for
-    if (core_url == '/albums.json') {
-      handle_list_albums(req, res);
-    } else if (core_url.substr(0, 7) == '/albums'
-    && core_url.substr(core_url.length - 5) == '.json') {
-      handle_get_album(req, res);
-    } else {
-      send_failure(res, 404, invalid_resource());
-    }
+   if (core_url == '/albums.json') {
+       handle_list_albums(req, res);
+   } else if (core_url.substr(core_url.length - 12)  == '/rename.json'
+              && req.method.toLowerCase() == 'post') {
+       handle_rename_album(req, res);
+   } else if (core_url.substr(0, 7) == '/albums'
+              && core_url.substr(core_url.length - 5) == '.json') {
+       handle_get_album(req, res);
+   } else {
+       send_failure(res, 404, invalid_resource());
+   }
   }
 
   function handle_list_albums(req, res) {
@@ -126,7 +136,7 @@ function load_album(album_name, page, page_size, callback) {
 
     // format of request is /albums/album_name.json
     var core_url = req.parsed_url.pathname;
-    
+
     var album_name = core_url.substr(7, core_url.length - 12);
     load_album(album_name, page_num, page_size, (err, album_contents) => {
       if (err && err.error == "no_such_album") {
@@ -138,6 +148,67 @@ function load_album(album_name, page, page_size, callback) {
       }
     });
   }
+
+  function handle_rename_album(req, res) {
+
+    // 1. Get the album name from the URL
+    var core_url = req.parsed_url.pathname;
+    var parts = core_url.split('/');
+    if (parts.length != 4) {
+        send_failure(res, 404, invalid_resource());
+        return;
+    }
+
+    var album_name = parts[2];
+
+    // 2. get the POST data for the request. this will have the JSON
+    // for the new name for the album.
+    var json_body = '';
+    req.on('readable', () => {
+        var d = req.read();
+        if (d) {
+            if (typeof d == 'string') {
+                json_body += d;
+            } else if (typeof d == 'object' && d instanceof Buffer) {
+                json_body += d.toString('utf8');
+            }
+        }
+    });
+
+    // 3. when we have all the post data, make sure we have valid
+    //    data and then try to do the rename.
+    req.on('end', () => {
+        // did we get a valid body?
+        if (json_body) {
+            try {
+                var album_data = JSON.parse(json_body);
+                if (!album_data.album_name) {
+                    send_failure(res, 404, missing_data('album_name'));
+                    return;
+                }
+            } catch (e) {
+                // got a body, but not valid json
+                send_failure(res, 403, bad_json());
+                return;
+            }
+
+            // we have a proposed new album name!
+            do_rename(album_name, album_data.album_name, (err, results) => {
+                if (err && err.code == "ENOENT") {
+                    send_failure(res, 403, no_such_album());
+                    return;
+                } else if (err) {
+                    send_failure(res, 500, file_error(err));
+                    return;
+                }
+                send_success(res, null);
+            });
+        } else {
+            send_failure(res, 403, bad_json());
+            res.end();
+        }
+    });
+}
 
   function make_error(err, msg) {
     var e = new Error(msg);
@@ -167,6 +238,11 @@ function load_album(album_name, page, page_size, callback) {
     return make_error("no_such_album",
     "The specified album does not exist");
   }
+
+  function bad_json() {
+    return make_error("invalid_json",
+                      "the provided data is not valid JSON");
+}
 
   var s = http.createServer(handle_incoming_request);
 
