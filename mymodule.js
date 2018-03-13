@@ -18,6 +18,17 @@ function Greeter (lang) {
   }
 }
 
+function ABC (parms) {
+  this.varA = ...;
+  this.varB = ...;
+  this.functionA = function () {
+    ...
+  }
+}
+exports.create_ABC = function (parms) {
+  return new ABC(parms);
+}
+
 exports.hello_world = function () {
   console.log("Hello World");
 }
