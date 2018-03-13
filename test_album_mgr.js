@@ -1,5 +1,5 @@
 
-var amgr = require('./album_mgr');
+var amgr = require('./my-album-manager');
 
 
 amgr.albums('./', function (err, albums) {
