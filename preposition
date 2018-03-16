@@ -1,0 +1,6 @@
+The Problem
+Consider the case in which you want to write some asynchronous code to
+ 1 Open a handle to a path.
+ 2 Determine whether or not the path points to a file.
+ 3 Load in the contents of the file if the path does point to a file.
+ 4 Close the file handle and return the contents to the caller
