@@ -6,7 +6,7 @@ var http = require('http'),
 function handle_incoming_request(req, res) {
     if (req.method.toLowerCase() == 'get'
         && req.url.substring(0, 9) == '/content/') {
-        serve_static_file(req.url.substring(9), res);
+        serve_static_file(req.url.substring(1), res);
     } else {
         res.writeHead(404, { "Content-Type" : "application/json" });
 
@@ -19,7 +19,6 @@ function handle_incoming_request(req, res) {
 
 function serve_static_file(file, res) {
     var rs = fs.createReadStream(file);
-
     var ct = content_type_for_path(file);
     res.writeHead(200, { "Content-Type" : ct });
 
@@ -28,22 +27,10 @@ function serve_static_file(file, res) {
         var out = { error: "not_found",
                     message: "'" + file + "' not found" };
         res.end(JSON.stringify(out) + "\n");
+        return;
     });
 
-    rs.on('readable', () => {
-        var data = rs.read();
-        if (!res.write(data)) {
-            rs.pause();
-        }
-    });
-
-    res.on('drain', () => {
-        rs.resume();
-    });
-
-    rs.on('end', () => {
-        res.end();  // we're done!!!
-    });
+    rs.pipe(res);
 }
 
 function content_type_for_path (file) {
